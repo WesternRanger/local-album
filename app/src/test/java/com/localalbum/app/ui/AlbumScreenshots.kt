@@ -33,6 +33,8 @@ import com.localalbum.app.domain.Comment
 import com.localalbum.app.domain.LibraryState
 import com.localalbum.app.domain.MediaItem
 import com.localalbum.app.domain.MediaKind
+import com.localalbum.app.domain.PrivatePhoto
+import com.localalbum.app.domain.SimilarGroup
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -63,28 +65,85 @@ class AlbumScreenshots {
 
     @Test
     fun homeAlbumList() {
+        capture(fileName = "home_albums_photos.png", widthDp = 393, heightDp = 2400) {
+            home(HomeTab.Albums)
+        }
+    }
+
+    @Test
+    fun albumDetailCover() {
         val state = library()
-        capture(fileName = "home_albums_photos.png", widthDp = 393, heightDp = 1880) {
-            HomeScreen(
-                state = state,
-                partial = false,
+        val june = state.albums.first { it.id == "month:2026-06" }
+        capture(fileName = "album_detail_cover.png", widthDp = 393, heightDp = 1200) {
+            AlbumScreen(
+                album = june,
+                comments = state.comments,
+                likes = state.likes,
                 imageLoader = loader(),
+                onBack = {},
                 onOpen = {},
-                onRequestMore = {},
-                onRetry = {},
             )
         }
     }
 
     @Test
-    fun monthAlbumGrid() {
-        val june = library().albums.first { it.id == "month:2026-06" }
-        capture(fileName = "month_grid_photos.png", widthDp = 393, heightDp = 851) {
-            AlbumScreen(
-                album = june,
-                imageLoader = loader(),
-                onBack = {},
-                onOpen = {},
+    fun similarPhotosTab() {
+        capture(fileName = "similar_photos.png", widthDp = 393, heightDp = 1400) {
+            home(HomeTab.Similar, groups = similarGroups())
+        }
+    }
+
+    @Test
+    fun similarDeleteConfirm() {
+        val chosen = listOf(junePhoto, juneStill)
+        capture(fileName = "similar_delete_confirm.png", widthDp = 393, heightDp = 1000) {
+            home(
+                tab = HomeTab.Similar,
+                groups = similarGroups(),
+                selected = chosen.map { it.key }.toSet(),
+                confirm = chosen,
+            )
+        }
+    }
+
+    @Test
+    fun privateSpaceLocked() {
+        capture(fileName = "private_locked.png", widthDp = 393, heightDp = 1000) {
+            home(
+                tab = HomeTab.Private,
+                privateState = PrivateSpaceState(
+                    hasPin = true,
+                    unlocked = false,
+                    biometricAvailable = true,
+                    photos = emptyList(),
+                    libraryPhotos = emptyList(),
+                    busy = false,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun privateSpaceUnlocked() {
+        capture(fileName = "private_unlocked.png", widthDp = 393, heightDp = 1100) {
+            home(
+                tab = HomeTab.Private,
+                privateState = PrivateSpaceState(
+                    hasPin = true,
+                    unlocked = true,
+                    biometricAvailable = true,
+                    photos = listOf(
+                        PrivatePhoto(
+                            id = 1,
+                            uri = "placeholder://private-one",
+                            displayName = "示例-私密.jpg",
+                            mimeType = "image/jpeg",
+                            dateTakenMillis = java.time.Instant.parse("2026-06-15T04:00:00Z").toEpochMilli(),
+                        ),
+                    ),
+                    libraryPhotos = emptyList(),
+                    busy = false,
+                ),
             )
         }
     }
@@ -110,7 +169,7 @@ class AlbumScreenshots {
                 items = listOf(livePhoto),
                 startIndex = 0,
                 likes = emptySet(),
-                comments = mapOf(livePhoto.key to listOf(Comment(1, "示例留言，不是真实照片", 1L))),
+                comments = mapOf(livePhoto.key to listOf(Comment(1, "示例感想，不是真实照片", 1L))),
                 imageLoader = loader(),
                 onBack = {},
                 onPageChanged = {},
@@ -140,7 +199,7 @@ class AlbumScreenshots {
             items = listOf(junePhoto),
             startIndex = 0,
             likes = setOf(junePhoto.key),
-            comments = mapOf(junePhoto.key to listOf(Comment(1, "示例留言：色块，没有真人", 1L))),
+            comments = mapOf(junePhoto.key to listOf(Comment(1, "示例感想：色块，没有真人", 1L))),
             imageLoader = loader(),
             onBack = {},
             onPageChanged = {},
@@ -169,17 +228,76 @@ class AlbumScreenshots {
         }
     }
 
+    @Composable
+    private fun home(
+        tab: HomeTab,
+        groups: List<SimilarGroup> = emptyList(),
+        selected: Set<String> = emptySet(),
+        confirm: List<MediaItem>? = null,
+        privateState: PrivateSpaceState = PrivateSpaceState(
+            hasPin = true,
+            unlocked = false,
+            biometricAvailable = false,
+            photos = emptyList(),
+            libraryPhotos = emptyList(),
+            busy = false,
+        ),
+    ) {
+        val state = library()
+        LibraryHome(
+            tab = tab,
+            onTab = {},
+            state = state,
+            partial = false,
+            imageLoader = loader(),
+            similarGroups = groups,
+            similarScanning = false,
+            banner = null,
+            onDismissBanner = {},
+            onOpenAlbum = {},
+            onRequestMore = {},
+            onRetry = {},
+            onDeleteSimilar = {},
+            privateState = privateState,
+            onCreatePin = {},
+            onSubmitPin = { false },
+            onUnlock = {},
+            onLock = {},
+            onImport = {},
+            onExportPrivate = {},
+            onDeletePrivate = {},
+            initialSimilarSelection = selected,
+            initialSimilarConfirm = confirm,
+        )
+    }
+
+    private fun similarGroups(): List<SimilarGroup> = listOf(
+        SimilarGroup("burst", listOf(junePhoto, juneStill, augustPhoto)),
+        SimilarGroup("copy", listOf(livePhoto, copyPhoto)),
+    )
+
     private fun library(): LibraryState {
         val items = listOf(junePhoto, juneStill, juneVideo, augustPhoto, livePhoto)
+        val comments = mapOf(
+            junePhoto.key to listOf(
+                Comment(1, "今天真好 😊", 3),
+                Comment(2, "今天真好 ❤\uFE0F", 2),
+            ),
+            juneStill.key to listOf(
+                Comment(3, "今天真好 😊", 1),
+                Comment(4, "风很轻 🌿", 4),
+            ),
+            livePhoto.key to listOf(Comment(5, "慢慢看 🌸", 1)),
+        )
         return LibraryState(
             albums = AlbumCatalog.build(
                 items = items,
                 likes = setOf(junePhoto.key),
-                commentCounts = mapOf(juneStill.key to 2, livePhoto.key to 1),
+                commentCounts = comments.mapValues { it.value.size },
                 zone = zone,
             ),
             likes = setOf(junePhoto.key),
-            comments = emptyMap(),
+            comments = comments,
             loading = false,
             error = null,
         )
@@ -192,6 +310,8 @@ class AlbumScreenshots {
         images[juneVideo.uri] = picture(0xFFC7C7CC.toInt(), motif = 2)
         images[augustPhoto.uri] = picture(0xFFAEAEB2.toInt(), motif = 0)
         images[livePhoto.uri] = picture(0xFFD6E4F0.toInt(), motif = 1)
+        images["placeholder://private-one"] = picture(0xFFE8F2FF.toInt(), motif = 0)
+        images[copyPhoto.uri] = picture(0xFFC7C7CC.toInt(), motif = 1)
     }
 
     private fun picture(color: Int, motif: Int): Image {
@@ -252,6 +372,13 @@ class AlbumScreenshots {
         key = "august-photo",
         name = "示例-八月.jpg",
         at = "2026-08-03T04:00:00Z",
+        bucketId = "camera",
+        bucketName = "Camera",
+    )
+    private val copyPhoto = item(
+        key = "copy-photo",
+        name = "示例-副本.jpg",
+        at = "2026-05-21T04:00:00Z",
         bucketId = "camera",
         bucketName = "Camera",
     )
@@ -327,14 +454,46 @@ class AlbumScreenshots {
 @Composable
 private fun ScreenshotTheme(content: @Composable () -> Unit) {
     LocalAlbumTheme {
-        val font = remember {
-            FontFamily(Font(File(AlbumScreenshots.fontPath())))
-        }
+        val font = remember { screenshotFontFamily() }
         MaterialTheme(
             colorScheme = MaterialTheme.colorScheme,
             typography = MaterialTheme.typography.withFont(font),
             content = content,
         )
+    }
+}
+
+private fun screenshotFontFamily(): FontFamily {
+    val cjk = File("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc")
+    val droid = File("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf")
+    val emoji = File("/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf")
+    val baseFile = if (cjk.exists()) cjk else droid
+    return try {
+        val typeface = if (android.os.Build.VERSION.SDK_INT >= 29 && emoji.exists()) {
+            android.graphics.Typeface.CustomFallbackBuilder(platformFamily(baseFile))
+                .addCustomFallback(platformFamily(emoji))
+                .build()
+        } else {
+            loadTypeface(baseFile)
+        }
+        FontFamily(typeface)
+    } catch (_: RuntimeException) {
+        FontFamily(loadTypeface(droid))
+    }
+}
+
+private fun platformFamily(file: File): android.graphics.fonts.FontFamily {
+    val font = android.graphics.fonts.Font.Builder(file).apply {
+        if (file.extension.equals("ttc", ignoreCase = true)) setTtcIndex(0)
+    }.build()
+    return android.graphics.fonts.FontFamily.Builder(font).build()
+}
+
+private fun loadTypeface(file: File): android.graphics.Typeface {
+    return if (file.extension.equals("ttc", ignoreCase = true)) {
+        android.graphics.Typeface.Builder(file).setTtcIndex(0).build()
+    } else {
+        android.graphics.Typeface.createFromFile(file)
     }
 }
 
@@ -359,5 +518,3 @@ private fun Typography.withFont(font: FontFamily): Typography {
     )
 }
 
-private fun AlbumScreenshots.Companion.fontPath(): String =
-    "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf"

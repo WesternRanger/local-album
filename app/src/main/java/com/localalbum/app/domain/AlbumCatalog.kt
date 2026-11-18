@@ -107,7 +107,7 @@ object AlbumCatalog {
             LIVE to ("实况" to items.filter { it.kind == MediaKind.PHOTO && it.isLive }),
             VIDEO to ("视频" to items.filter { it.kind == MediaKind.VIDEO }),
             LIKED to ("我喜欢的" to items.filter { it.key in likes }),
-            COMMENTED to ("有留言" to items.filter { (commentCounts[it.key] ?: 0) > 0 }),
+            COMMENTED to ("有感想" to items.filter { (commentCounts[it.key] ?: 0) > 0 }),
         )
         return specs.mapNotNull { (id, titled) ->
             val (title, group) = titled

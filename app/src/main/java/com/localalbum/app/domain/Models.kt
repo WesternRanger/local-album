@@ -46,6 +46,14 @@ data class Comment(
     val createdAt: Long,
 )
 
+data class PrivatePhoto(
+    val id: Long,
+    val uri: String,
+    val displayName: String,
+    val mimeType: String,
+    val dateTakenMillis: Long?,
+)
+
 data class LibraryState(
     val albums: List<Album> = emptyList(),
     val likes: Set<String> = emptySet(),

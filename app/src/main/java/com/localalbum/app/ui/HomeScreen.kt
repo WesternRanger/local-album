@@ -19,13 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,12 +34,12 @@ import androidx.core.net.toUri
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import com.localalbum.app.domain.Album
+import com.localalbum.app.domain.AlbumHighlights
 import com.localalbum.app.domain.AlbumKind
 import com.localalbum.app.domain.LibraryState
 import com.localalbum.app.domain.MediaItem
 import com.localalbum.app.domain.MediaKind
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     state: LibraryState,
@@ -53,64 +49,57 @@ fun HomeScreen(
     onRequestMore: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("本地相册", style = MaterialTheme.typography.headlineMedium)
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        when {
+            state.loading && state.albums.isEmpty() -> CenterMessage(
+                title = "正在整理相册",
+                body = "稍等一下，正在读取手机里的照片和视频。",
+                loading = true,
             )
-        },
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            when {
-                state.loading && state.albums.isEmpty() -> CenterMessage(
-                    title = "正在整理相册",
-                    body = "稍等一下，正在读取手机里的照片和视频。",
-                    loading = true,
-                )
-                state.error != null && state.albums.isEmpty() -> CenterMessage(
-                    title = "没能打开相册",
-                    body = state.error,
-                    action = "重试",
-                    onAction = onRetry,
-                )
-                state.albums.isEmpty() -> CenterMessage(
-                    title = "还没有照片或视频",
-                    body = "拍一张照片，或把图片保存到手机后，回到这里就能看到。",
-                    action = "重新读取",
-                    onAction = onRetry,
-                )
-                else -> LazyColumn(
-                    modifier = Modifier
-                        .widthIn(max = 760.dp)
-                        .fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 20.dp,
-                        end = 20.dp,
-                        top = 8.dp,
-                        bottom = 28.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    if (partial) {
-                        item {
-                            PartialBanner(onRequestMore)
-                        }
+            state.error != null && state.albums.isEmpty() -> CenterMessage(
+                title = "没能打开相册",
+                body = state.error,
+                action = "重试",
+                onAction = onRetry,
+            )
+            state.albums.isEmpty() -> CenterMessage(
+                title = "还没有照片或视频",
+                body = "拍一张照片，或把图片保存到手机后，回到这里就能看到。",
+                action = "重新读取",
+                onAction = onRetry,
+            )
+            else -> LazyColumn(
+                modifier = Modifier
+                    .widthIn(max = 760.dp)
+                    .fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 8.dp,
+                    bottom = 28.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (partial) {
+                    item {
+                        PartialBanner(onRequestMore)
                     }
-                    items(state.albums, key = { it.id }) { album ->
-                        AlbumCard(album, imageLoader, onClick = { onOpen(album.id) })
-                    }
+                }
+                items(state.albums, key = { it.id }) { album ->
+                    AlbumCard(
+                        album = album,
+                        highlights = AlbumHighlights.fromAlbum(
+                            album = album,
+                            comments = state.comments,
+                            likes = state.likes,
+                            thoughtLimit = 1,
+                        ),
+                        imageLoader = imageLoader,
+                        onClick = { onOpen(album.id) },
+                    )
                 }
             }
         }
@@ -125,11 +114,12 @@ private fun PartialBanner(onRequestMore: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("当前只显示你选择的照片和视频", style = MaterialTheme.typography.titleMedium)
+            Text("当前只显示你选择的照片和视频", color = Ink, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             Text(
                 "可以再选一些，月份相册和文件夹会跟着变多。",
-                style = MaterialTheme.typography.bodyLarge,
+                color = Quiet,
+                style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(Modifier.height(12.dp))
             Button(onClick = onRequestMore, modifier = Modifier.heightIn(min = 56.dp)) {
@@ -142,6 +132,7 @@ private fun PartialBanner(onRequestMore: () -> Unit) {
 @Composable
 private fun AlbumCard(
     album: Album,
+    highlights: AlbumHighlights,
     imageLoader: ImageLoader,
     onClick: () -> Unit,
 ) {
@@ -153,41 +144,44 @@ private fun AlbumCard(
             .fillMaxWidth()
             .heightIn(min = 128.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Cover(
-                item = album.items.firstOrNull(),
-                imageLoader = imageLoader,
-                modifier = Modifier
-                    .size(104.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = album.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Ink,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Cover(
+                    item = album.items.firstOrNull(),
+                    imageLoader = imageLoader,
+                    modifier = Modifier
+                        .size(104.dp)
+                        .clip(RoundedCornerShape(12.dp)),
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = albumCount(album),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Quiet,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = albumKindLabel(album.kind),
-                    color = Quiet,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                )
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = album.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Ink,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = albumCount(album),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Quiet,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = albumKindLabel(album.kind),
+                        color = Quiet.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                    )
+                }
+            }
+            if (highlights.hasContent) {
+                Spacer(Modifier.height(12.dp))
+                CoverHighlights(highlights = highlights, large = false)
             }
         }
     }
