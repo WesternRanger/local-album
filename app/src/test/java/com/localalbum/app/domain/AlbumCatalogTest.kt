@@ -72,6 +72,7 @@ class AlbumCatalogTest {
         assertEquals(listOf("clip"), smart.getValue(AlbumCatalog.VIDEO).items.map { it.key })
         assertEquals(listOf("still"), smart.getValue(AlbumCatalog.LIKED).items.map { it.key })
         assertEquals(listOf("live"), smart.getValue(AlbumCatalog.COMMENTED).items.map { it.key })
+        assertEquals("有感想", smart.getValue(AlbumCatalog.COMMENTED).title)
         assertFalse(smart.getValue(AlbumCatalog.LIVE).items.any { it.key == "still" })
     }
 

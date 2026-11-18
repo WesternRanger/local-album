@@ -3,6 +3,7 @@ package com.localalbum.app.ui
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -28,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.localalbum.app.domain.AlbumKind
+import com.localalbum.app.domain.MediaKind
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -80,22 +83,80 @@ fun AlbumApp() {
 
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(app))
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val similarGroups by viewModel.similarGroups.collectAsStateWithLifecycle()
+    val similarScanning by viewModel.similarScanning.collectAsStateWithLifecycle()
+    val privatePhotos by viewModel.privatePhotos.collectAsStateWithLifecycle()
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        viewModel.onSystemDeleteResult(result.resultCode == Activity.RESULT_OK)
+    }
+    val biometricAvailable = remember { deviceBiometricAvailable(context) }
+    val libraryPhotos = remember(state.albums) {
+        state.albums
+            .filter { it.kind == AlbumKind.MONTH }
+            .flatMap { it.items }
+            .filter { it.kind == MediaKind.PHOTO }
+            .distinctBy { it.key }
+    }
     LaunchedEffect(reload) { viewModel.refresh() }
     val destination = viewModel.destination
     SystemBars(light = !isSystemInDarkTheme() && destination !is Destination.Viewer)
-    BackHandler(enabled = destination != Destination.Home) { viewModel.back() }
+    val atAlbumRoot = destination == Destination.Home && viewModel.tab == HomeTab.Albums
+    BackHandler(enabled = !atAlbumRoot) {
+        if (destination == Destination.Home) viewModel.selectTab(HomeTab.Albums) else viewModel.back()
+    }
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val lockObserver = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) viewModel.lockPrivate()
+        }
+        lifecycleOwner.lifecycle.addObserver(lockObserver)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(lockObserver) }
+    }
 
     when (val screen = destination) {
-        Destination.Home -> HomeScreen(
+        Destination.Home -> LibraryHome(
+            tab = viewModel.tab,
+            onTab = viewModel::selectTab,
             state = state,
             partial = access == MediaAccess.Partial,
             imageLoader = app.imageLoader,
-            onOpen = viewModel::openAlbum,
+            similarGroups = similarGroups,
+            similarScanning = similarScanning,
+            banner = viewModel.banner,
+            onDismissBanner = viewModel::dismissBanner,
+            onOpenAlbum = viewModel::openAlbum,
             onRequestMore = { launcher.launch(mediaPermissionRequest()) },
             onRetry = viewModel::refresh,
+            onDeleteSimilar = { items ->
+                viewModel.deleteSimilar(items) { sender ->
+                    deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                }
+            },
+            privateState = PrivateSpaceState(
+                hasPin = viewModel.hasPin,
+                unlocked = viewModel.privateUnlocked,
+                biometricAvailable = biometricAvailable,
+                photos = privatePhotos,
+                libraryPhotos = libraryPhotos,
+                busy = viewModel.busy,
+            ),
+            onCreatePin = viewModel::createPin,
+            onSubmitPin = viewModel::submitPin,
+            onUnlock = viewModel::unlockFromBiometric,
+            onLock = viewModel::lockPrivate,
+            onImport = { items ->
+                viewModel.importPrivate(items) { sender ->
+                    deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                }
+            },
+            onExportPrivate = viewModel::exportPrivate,
+            onDeletePrivate = viewModel::deletePrivate,
         )
         is Destination.Album -> AlbumScreen(
             album = state.albums.firstOrNull { it.id == screen.id },
+            comments = state.comments,
+            likes = state.likes,
             imageLoader = app.imageLoader,
             onBack = viewModel::back,
             onOpen = { index -> viewModel.openViewer(screen.id, index) },

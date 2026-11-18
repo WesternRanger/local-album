@@ -2,14 +2,18 @@ package com.localalbum.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +40,8 @@ import androidx.core.net.toUri
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import com.localalbum.app.domain.Album
+import com.localalbum.app.domain.AlbumHighlights
+import com.localalbum.app.domain.Comment
 import com.localalbum.app.domain.Durations
 import com.localalbum.app.domain.MediaKind
 
@@ -43,6 +49,8 @@ import com.localalbum.app.domain.MediaKind
 @Composable
 fun AlbumScreen(
     album: Album?,
+    comments: Map<String, List<Comment>>,
+    likes: Set<String>,
     imageLoader: ImageLoader,
     onBack: () -> Unit,
     onOpen: (Int) -> Unit,
@@ -72,11 +80,13 @@ fun AlbumScreen(
         },
     ) { padding ->
         when {
-            album == null -> CenterMessage(
-                title = "正在打开",
-                body = "相册内容马上就到。",
-                loading = true,
-            )
+            album == null -> Box(Modifier.fillMaxSize().padding(padding)) {
+                CenterMessage(
+                    title = "正在打开",
+                    body = "相册内容马上就到。",
+                    loading = true,
+                )
+            }
             album.items.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding)) {
                 CenterMessage(
                     title = "这个相册是空的",
@@ -94,9 +104,58 @@ fun AlbumScreen(
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
             ) {
+                item(key = "cover", span = { GridItemSpan(maxLineSpan) }) {
+                    AlbumDetailCover(
+                        album = album,
+                        highlights = AlbumHighlights.fromAlbum(
+                            album = album,
+                            comments = comments,
+                            likes = likes,
+                            thoughtLimit = 2,
+                        ),
+                        imageLoader = imageLoader,
+                    )
+                }
                 itemsIndexed(album.items, key = { _, item -> item.key }) { index, item ->
                     Thumb(item, imageLoader, onClick = { onOpen(index) })
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumDetailCover(
+    album: Album,
+    highlights: AlbumHighlights,
+    imageLoader: ImageLoader,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column {
+            Cover(
+                item = album.items.firstOrNull(),
+                imageLoader = imageLoader,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(
+                        if (highlights.hasContent) {
+                            RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        } else {
+                            RoundedCornerShape(16.dp)
+                        },
+                    ),
+            )
+            if (highlights.hasContent) {
+                CoverHighlights(
+                    highlights = highlights,
+                    large = true,
+                    modifier = Modifier.padding(16.dp),
+                )
             }
         }
     }

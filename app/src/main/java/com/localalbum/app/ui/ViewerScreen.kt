@@ -444,9 +444,9 @@ private fun ViewerPanel(
                 )
             }
         }
-        Text("留言", color = Ink, style = MaterialTheme.typography.titleMedium)
+        Text("感想", color = Ink, style = MaterialTheme.typography.titleMedium)
         if (comments.isEmpty()) {
-            Text("还没有留言", color = Quiet, style = MaterialTheme.typography.bodyLarge)
+            Text("还没有感想", color = Quiet, style = MaterialTheme.typography.bodyLarge)
         } else {
             comments.forEach { comment ->
                 Surface(
@@ -471,7 +471,7 @@ private fun ViewerPanel(
                 modifier = Modifier.weight(1f),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = Ink),
                 placeholder = {
-                    Text("写一条留言", color = Quiet, style = MaterialTheme.typography.bodyLarge)
+                    Text("写一点感想", color = Quiet, style = MaterialTheme.typography.bodyLarge)
                 },
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.colors(

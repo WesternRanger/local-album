@@ -7,8 +7,12 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
 internal val Ink = Color(0xFF1C1C1E)
@@ -49,14 +53,46 @@ private val DarkColors = darkColorScheme(
     outline = Color(0xFF3A3A3C),
 )
 
+private val CjkLine = LineHeightStyle(
+    alignment = LineHeightStyle.Alignment.Center,
+    trim = LineHeightStyle.Trim.None,
+)
+
+private fun typeStyle(
+    size: TextUnit,
+    line: TextUnit,
+    weight: FontWeight = FontWeight.Normal,
+) = TextStyle(
+    fontFamily = FontFamily.SansSerif,
+    fontWeight = weight,
+    fontSize = size,
+    lineHeight = line,
+    letterSpacing = 0.sp,
+    platformStyle = PlatformTextStyle(includeFontPadding = false),
+    lineHeightStyle = CjkLine,
+)
+
+/**
+ * System sans for Chinese, with a tighter scale than the old oversized SemiBold set.
+ * Titles stay clear at Medium. Meta styles are smaller so they sit quieter than names.
+ * Letter spacing stays at zero so Chinese glyphs are not pulled apart.
+ */
 private val AlbumType = Typography(
-    headlineLarge = TextStyle(fontSize = 34.sp, lineHeight = 42.sp, fontWeight = FontWeight.SemiBold),
-    headlineMedium = TextStyle(fontSize = 30.sp, lineHeight = 38.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium),
-    bodyLarge = TextStyle(fontSize = 20.sp, lineHeight = 28.sp),
-    bodyMedium = TextStyle(fontSize = 18.sp, lineHeight = 26.sp),
-    labelLarge = TextStyle(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold),
+    displayLarge = typeStyle(32.sp, 40.sp, FontWeight.Medium),
+    displayMedium = typeStyle(28.sp, 36.sp, FontWeight.Medium),
+    displaySmall = typeStyle(24.sp, 32.sp, FontWeight.Medium),
+    headlineLarge = typeStyle(28.sp, 36.sp, FontWeight.Medium),
+    headlineMedium = typeStyle(26.sp, 34.sp, FontWeight.Medium),
+    headlineSmall = typeStyle(22.sp, 30.sp, FontWeight.Medium),
+    titleLarge = typeStyle(22.sp, 30.sp, FontWeight.Medium),
+    titleMedium = typeStyle(18.sp, 26.sp, FontWeight.Medium),
+    titleSmall = typeStyle(16.sp, 22.sp, FontWeight.Medium),
+    bodyLarge = typeStyle(18.sp, 28.sp),
+    bodyMedium = typeStyle(16.sp, 24.sp),
+    bodySmall = typeStyle(14.sp, 20.sp),
+    labelLarge = typeStyle(18.sp, 24.sp, FontWeight.Medium),
+    labelMedium = typeStyle(15.sp, 20.sp, FontWeight.Medium),
+    labelSmall = typeStyle(13.sp, 18.sp, FontWeight.Medium),
 )
 
 @Composable
